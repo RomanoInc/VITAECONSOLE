@@ -1,0 +1,127 @@
+from textual.app import App, ComposeResult
+from textual.containers import VerticalScroll, Vertical, Grid
+from textual.widgets import Input, Label, Markdown, RichLog
+from textual.reactive import reactive
+from textual import events
+
+class DynamicInputs(Vertical):
+    """Contenedor de inputs dinámicos con manejo de datos"""
+    
+    inputs_data = reactive({})  # Almacena los datos reactivamente
+    
+    def _init_(self, fields: list[str], title: str = ""):
+        super()._init_()
+        self.fields = fields
+        self.title = title
+        
+    def compose(self) -> ComposeResult:
+        yield Markdown(f"## {self.title}")
+        with Grid():
+            for field in self.fields:
+                yield Label(field)
+                yield Input(placeholder=f"Ingrese {field.lower()}", id=f"input_{field.lower()}")
+    
+    def on_input_changed(self, event: Input.Changed) -> None:
+        """Actualiza los datos cuando cambia un input"""
+        field_name = event.input.id.replace("input_", "")
+        self.inputs_data = {**self.inputs_data, field_name: event.value}
+    
+    def get_values(self) -> dict:
+        """Retorna todos los valores actuales"""
+        return self.inputs_data
+    
+    def clear_inputs(self) -> None:
+        """Limpia todos los inputs"""
+        for input_widget in self.query(Input):
+            input_widget.value = ""
+        self.inputs_data = {}
+
+class InputScreen(VerticalScroll):
+    """Pantalla principal con los inputs dinámicos"""
+    
+    def compose(self) -> ComposeResult:
+        # Definimos los campos que queremos en el formulario
+        fields = [
+            "Nombre",
+            "Identificación",
+            "Email",
+            "Teléfono",
+            "Dirección",
+            "Profesión",
+            "Experiencia"
+        ]
+        
+        # Creamos el componente de inputs dinámicos
+        self.dynamic_inputs = DynamicInputs(fields, "Hoja de Vida")
+        yield self.dynamic_inputs
+        
+        # Área para mostrar los resultados
+        yield RichLog(id="log", markup=True)
+    
+    def on_mount(self) -> None:
+        """Configuración inicial"""
+        log = self.query_one("#log")
+        log.write("[bold]Ingrese los datos solicitados[/bold]")
+    
+    def on_key(self, event: events.Key) -> None:
+        """Maneja teclas especiales"""
+        if event.key == "ctrl+s":
+            # Ejemplo: Guardar con Ctrl+S
+            values = self.dynamic_inputs.get_values()
+            log = self.query_one("#log")
+            log.write("\n[bold green]Datos guardados:[/]")
+            for field, value in values.items():
+                log.write(f"  [cyan]{field}:[/] {value}")
+        
+        elif event.key == "ctrl+c":
+            # Limpiar formulario con Ctrl+C
+            self.dynamic_inputs.clear_inputs()
+            self.query_one("#log").write("\n[bold yellow]Formulario limpiado[/]")
+
+class CVApp(App):
+    """Aplicación principal de hoja de vida"""
+    
+    CSS = """
+    Screen {
+        align: center middle;
+    }
+    
+    DynamicInputs {
+        width: 80%;
+        margin: 1;
+        
+        Grid {
+            grid-size: 2;
+            grid-gutter: 1;
+            grid-columns: auto 1fr;
+            
+            Label {
+                width: 100%;
+                padding: 1;
+                text-align: right;
+            }
+            
+            Input {
+                width: 100%;
+            }
+        }
+    }
+    
+    #log {
+        border: solid $accent;
+        height: 10;
+        margin: 1;
+        padding: 1;
+    }
+    """
+    
+    def on_ready(self) -> None:
+        """Mensaje cuando la app está lista"""
+        self.query_one("#log").write("\n[italic]Presione Ctrl+S para guardar, Ctrl+C para limpiar[/]")
+    
+    def compose(self) -> ComposeResult:
+        yield InputScreen()
+
+if _name_ == "_main_":
+    app = CVApp()
+    app.run()
