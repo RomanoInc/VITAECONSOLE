@@ -1,0 +1,73 @@
+from textual.app import App, ComposeResult
+from textual.containers import VerticalScroll, Vertical, Grid
+from textual.widgets import Input, Label, Markdown, RichLog
+from textual.reactive import reactive
+from textual import events
+import re
+
+class DynamicInputs(Vertical):
+    """Contenedor de inputs dinámicos con manejo de datos"""
+    
+    inputs_data = reactive({})
+    
+    def _init_(self, fields: list[str], title: str = ""):
+        super()._init_()
+        self.fields = fields
+        self.title = title
+    
+    def sanitize_id(self, text: str) -> str:
+        """Convierte un texto a un ID válido para Textual"""
+        # Convertir a minúsculas
+        text = text.lower()
+        # Reemplazar espacios y caracteres especiales
+        text = re.sub(r'[^a-z0-9_]', '_', text)
+        # Asegurar que no empiece con número
+        if text[0].isdigit():
+            text = f"input_{text}"
+        return text
+    
+    def compose(self) -> ComposeResult:
+        yield Markdown(f"## {self.title}")
+        with Grid():
+            for field in self.fields:
+                yield Label(field)
+                field_id = self.sanitize_id(f"input_{field}")
+                yield Input(placeholder=f"Ingrese {field.lower()}", id=field_id)
+    
+    def on_input_changed(self, event: Input.Changed) -> None:
+        """Actualiza los datos cuando cambia un input"""
+        field_name = event.input.id.replace("input_", "")
+        self.inputs_data = {**self.inputs_data, field_name: event.value}
+
+class CVApp(App):
+    CSS = """
+    Screen {
+        align: center middle;
+    }
+    DynamicInputs {
+        width: 80%;
+        margin: 1;
+    }
+    Grid {
+        grid-size: 2;
+        grid-gutter: 1;
+        grid-columns: auto 1fr;
+    }
+    """
+    
+    def compose(self) -> ComposeResult:
+        fields = [
+            "Nombre",
+            "Identificación",  # Ahora se convertirá a "input_identificacion"
+            "Email",
+            "Teléfono",
+            "Dirección"
+        ]
+        yield VerticalScroll(
+            DynamicInputs(fields, "Hoja de Vida"),
+            RichLog()
+        )
+
+if _name_ == "_main_":
+    app = CVApp()
+    app.run()
