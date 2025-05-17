@@ -26,12 +26,13 @@ from textual.widgets import (
 
 )
 WIDGETS_MD = """\
-# Informacion hoja de vida
+# Widgets
+
+The Textual library includes a large number of builtin widgets.
+
+The following list is *not* exhaustive…
  
 """
-
-
-INPUT_DATA = []
 
 # class InputApp(App):
 #     """App to display key events."""
@@ -43,16 +44,19 @@ INPUT_DATA = []
 #         self.query_one(RichLog).write(event)
 
 
-class Inputs(containers.VerticalGroup ):
-    def __init__(self, title = "", labels = []):
-        super().__init__(self, title = "", labels = [])
-        # Inicializar los atributos de la clase
-        self.title = title
-        self.labels = labels
+class Inputs(containers.VerticalGroup , ):
+
+    def __init__(self, fields: list[str], title: str = ""):
+            super().__init__()
+            self.fields = fields
+            self.title = title
+            # Inicializar los atributos de la clase
+
 
     ALLOW_MAXIMIZE = True
     DEFAULT_CLASSES = "column"
-    INPUTS_MD = """\## hola """
+    INPUTS_MD = """\## {self.title}"""
+    LABELS = []
     DEFAULT_CSS = """
     Inputs {
         Grid {
@@ -78,12 +82,9 @@ class Inputs(containers.VerticalGroup ):
     def compose(self) -> ComposeResult:
         yield Markdown(self.INPUTS_MD)
         with containers.Grid():
-            for i in self.labels:
-                lbl = yield Label(f"{i}")
-                inp = yield Input()
-
-                INPUT_DATA.append(lbl)
-
+            for i in self.fields:
+                yield Label(f"{i}")
+                yield Input(placeholder="Type anything here")
 
             # yield Label("name")
             # yield Input(placeholder="Type anything here")
@@ -121,7 +122,7 @@ class WidgetsScreen(PageScreen):
     """
 
     BINDINGS = [Binding("escape", "blur", "Unfocus any focused widget", show=False)]
-    
+
     def compose(self) -> ComposeResult:
         with lazy.Reveal(containers.VerticalScroll(can_focus=True)):
             loquesea = ["name","id","email","tel","dir"]
@@ -129,8 +130,7 @@ class WidgetsScreen(PageScreen):
             # yield Buttons()
             # yield Checkboxes()
             # yield Datatables()
-            objet = Inputs("hola",loquesea)
-            yield objet
+            yield Inputs(fields=loquesea)
             # yield ListViews()
             # yield Logs()
             # yield Markdowns()
@@ -150,11 +150,7 @@ if __name__ == "__main__":
     class cv_inputs(App):
         def get_default_screen(self) -> Screen: # type: ignore
             return WidgetsScreen()
-        # def run_input_data():
-        #     return INPUT_DATA
 
-    # data = cv_inputs.run_input_data()
-    # print(data)
     app = cv_inputs()
     app.run()
 
