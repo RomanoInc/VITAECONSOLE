@@ -1,0 +1,118 @@
+from textual.screen import Screen
+from textual import events
+from textual.app import App, ComposeResult
+from textual.widgets import RichLog, Input, Label
+from textual import containers
+from textual.widgets import Markdown
+
+class DynamicInputHandler:
+    """Clase para manejar los inputs dinámicamente"""
+    def _init_(self):
+        self.inputs = {}  # Diccionario para almacenar los inputs por nombre
+        
+    def add_input(self, name, input_widget):
+        self.inputs[name] = input_widget
+        
+    def get_values(self):
+        """Obtiene todos los valores de los inputs"""
+        return {name: input_widget.value for name, input_widget in self.inputs.items()}
+        
+    def clear_inputs(self):
+        """Limpia todos los inputs"""
+        for input_widget in self.inputs.values():
+            input_widget.value = ""
+
+class Inputs(containers.VerticalGroup):
+    """Grupo de inputs dinámicos"""
+    
+    DEFAULT_CSS = """
+    Inputs {
+        Grid {
+            background: $boost;
+            padding: 1 2;
+            height: auto;
+            grid-size: 2;
+            grid-gutter: 1;
+            grid-columns: auto 1fr;
+            border: tall blank;
+            &:focus-within {
+                border: tall $accent;
+            }
+            Label {
+                width: 100%;
+                padding: 1;
+                text-align: right;
+            }
+        }
+    }
+    """
+    
+    def _init_(self, title="", labels=[]):
+        super()._init_()
+        self.title = title
+        self.labels = labels
+        self.input_handler = DynamicInputHandler()
+
+    def compose(self) -> ComposeResult:
+        yield Markdown(f"## {self.title}")
+        with containers.Grid():
+            for label in self.labels:
+                # Crear el label
+                yield Label(f"{label}")
+                # Crear el input con un id único basado en el label
+                input_id = f"input_{label.lower().replace(' ', '_')}"
+                input_widget = Input(id=input_id)
+                yield input_widget
+                # Registrar el input en el manejador
+                self.input_handler.add_input(label, input_widget)
+
+class WidgetsScreen(Screen):
+    """Pantalla con widgets dinámicos"""
+    
+    CSS = """
+    WidgetsScreen { 
+        align-horizontal: center;
+        Markdown { background: transparent; }
+        & > VerticalScroll {
+            scrollbar-gutter: stable;
+            & > * {                          
+                &:even { background: $boost; }
+                padding-bottom: 1;
+            }
+        }
+    }
+    """
+    
+    def compose(self) -> ComposeResult:
+        with containers.VerticalScroll(can_focus=True):
+            fields = ["Nombre", "Identificación", "Email", "Teléfono", "Dirección"]
+            yield Inputs("Hoja de Vida", fields)
+            yield RichLog(id="output_log")  # Para mostrar los resultados
+
+    def on_mount(self):
+        """Evento que se ejecuta cuando se monta la pantalla"""
+        self.query_one(RichLog).write("Ingrese los datos solicitados")
+
+    def on_input_submitted(self, event: Input.Submitted):
+        """Maneja el evento cuando se envía un input"""
+        input_id = event.input.id
+        value = event.value
+        log = self.query_one(RichLog)
+        log.write(f"Input {input_id} enviado: {value}")
+        
+        # Obtener todos los valores de los inputs
+        inputs_section = self.query_one(Inputs)
+        all_values = inputs_section.input_handler.get_values()
+        log.write("\nValores actuales:")
+        for name, value in all_values.items():
+            log.write(f"  {name}: {value}")
+
+class CVApp(App):
+    """Aplicación principal"""
+    
+    def get_default_screen(self) -> Screen:
+        return WidgetsScreen()
+
+if _name_ == "_main_":
+    app = CVApp()
+    app.run()
